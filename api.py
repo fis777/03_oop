@@ -37,28 +37,29 @@ GENDERS = {
 }
 
 class EmptyFields(object):
-    """docstring for EmptyFields"""
-    empty_fields = ([], {}, (), '', 0, None)
+    """проверка на пустое value"""
+    empty_values = ([], {}, (), '', 0, None)
     fields = []
-
     def check(self, name, value):
-        if value in self.empty_fields:
+        if value in self.empty_values:
             self.fields.append(name)
-
-    @property
-    def fields(self):
-        return self.empty_fields
-
+            return True
+        return False
+    def clean(self):
+        self.fields[:] = []
+        pass
     @property
     def is_empty(self):
-        pass
+        if not self.fields:
+            return True
+        return False
         
 
 class ErrorFields(object):
     """docstring for Errorhandler"""
     errors = []
-    def add(self,error):
-        self.errors.append(error)
+    def add(self,error_field):
+        self.errors.append(error_field[1:])
 
     def clean(self):
         self.errors[:] = []
@@ -185,19 +186,26 @@ def clients_interests_handler(arguments):
 
 def online_score_handler(arguments):
     ErrorFields().clean()
+    EmptyFields().clean()
     os = OnlineScoreRequest()
     for attr_name in os.fields:
         try:
-            setattr(os, attr_name, arguments[attr_name])
+            if not EmptyFields().check(arguments[attr_name]):
+                setattr(os, attr_name, arguments[attr_name])
         except:
             setattr(os, attr_name, None)
 
     if ErrorFields().is_error:
         response, code = {"Not valid fields": ErrorFields().errors}, INVALID_REQUEST
         return response, code
-
-    response = 
-
+    
+    if ("first_name" not in EmptyFields().fields and "last_name" not in EmptyFields().fields) or ("email" not in EmptyFields().fields and "phone" not in EmptyFields().fields) or ("birthday" not in EmptyFields.fields and "gender" not in EmptyFields().fields):
+        if mr.is_admin:
+            return {"score": 42}, OK
+        else:
+            return {"score": get_score("", os.phone,os.email, os.birthday, os.gender, os.first_name, os.last_name)}, OK
+    else:
+        response, code = {"Not valid fields": ErrorFields().errors}, INVALID_REQUEST
 
 class ClientsInterestsRequest(object):
     __metaclass__ = Request

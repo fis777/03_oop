@@ -35,7 +35,7 @@ class TestSuite(unittest.TestCase):
 
         foo ={'body': {"account": "horns&hoofs", "login": 123, "method": 35435, "token":"55cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af3","arguments": {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}}}
         setattr(mr, "login", foo["body"]["login"] )
-        self.assertEqual(api.ErrorFields.errors, ["_login"])
+        self.assertEqual(api.ErrorFields.errors, ["login"])
 
 
     def test_MethodHandler(self):
@@ -45,11 +45,11 @@ class TestSuite(unittest.TestCase):
 
         foo ={'body': {"account": "horns&hoofs", "login": 123,"method": "online_score", "token":"55cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af34e14e1d5bcd5a08f21fc95","arguments": {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}}}        
         response, code = api.method_handler(foo, "", "")
-        self.assertEqual((response, code),({"Not valid fields": ["_login"]}, api.INVALID_REQUEST))
+        self.assertEqual((response, code),({"Not valid fields": ["login"]}, api.INVALID_REQUEST))
 
         foo ={'body': {"account": "horns&hoofs", "login": "h&h", "token":"55cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af3","arguments": {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}}}        
         response, code = api.method_handler(foo, "", "")
-        self.assertEqual((response, code),({"Not valid fields": ["_method"]}, api.INVALID_REQUEST))
+        self.assertEqual((response, code),({"Not valid fields": ["method"]}, api.INVALID_REQUEST))
 
     def test_clients_interests_handler(self):
         foo = {"client_ids": [1,2,3,4], "date": "20.07.2017"}
@@ -58,7 +58,7 @@ class TestSuite(unittest.TestCase):
 
         foo = {"client_ids": (1,2,3), "date": "20.07.2017"}
         response, code = api.clients_interests_handler(foo)
-        self.assertEqual(response, {"Not valid fields": ["_client_ids"]})
+        self.assertEqual(response, {"Not valid fields": ["client_ids"]})
 
 
 if __name__ == "__main__":
