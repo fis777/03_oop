@@ -113,17 +113,17 @@ class ArgumentsField(Field):
             ErrorFields().add(self.name)
 
 class EmailField(CharField):
-    def __set__(self, instance, value):
+    def validate(self, instance, value):
         if value.count('@') == 1:
-            super(EmailField, self).__set__(instance, value)
+            setattr(instance, self.name, value)
         else:
             ErrorFields().add(self.name)
 
 class PhoneField(Field):
-    def __set__(self, instance, value):
+    def validate(self, instance, value):
         value = str(value)
         if value.isdigit() and value[0] == '7' or len(value) == 11:
-            super(EmailField, self).__set__(instance, value)
+            setattr(instance, self.name, value)
         else:
             ErrorFields().add(self.name)
 
@@ -136,19 +136,21 @@ class DateField(Field):
         else:
             setattr(instance, self.name, date_field)
 
-class BirthDayField(Field):
-    def __set__(self, instance, value):
+class BirthDayField(DateField):
+    def validate(self, instance, value):
         super(BirthDayField, self).__set__(instance, value)
-        if date_field is not None:
-            delta = int((datetime.datetime.now() - date_field).days/365.25)
+        if DateField().date_field is not None:
+            delta = int((datetime.datetime.now() - DateField().date_field).days/365.25)
             if delta > 70:
+                setattr(instance, self.name, DateField().date_field)
+            else:
                 ErrorFields().add(self.name)
 
 
 class GenderField(Field):
-    def __set__(self, instance, value):
-        if isinstance(value,int) and value not in (UNKNOWN,MALE,FEMALE):
-            super(GenderField, self).__set__(instance, value)
+    def validate(self, instance, value):
+        if isinstance(value,int) and value in (UNKNOWN,MALE,FEMALE):
+            setattr(instance, self.name, value)
         else:
             ErrorFields().add(self.name)
 
@@ -168,7 +170,7 @@ class Request(type):
                 attrs['fields'].append(attr_name)
         return type.__new__(meta, classname, supers, attrs)
 
-def clients_interests_handler(arguments):
+def clients_interests_handler(arguments,admin):
     ErrorFields().clean()
     ci = ClientsInterestsRequest()
     for attr_name in ci.fields:
@@ -184,7 +186,7 @@ def clients_interests_handler(arguments):
     response = { ids: get_interests("", ids) for ids in ci.client_ids  }    
     return response, OK
 
-def online_score_handler(arguments):
+def online_score_handler(arguments, admin):
     ErrorFields().clean()
     EmptyFields().clean()
     os = OnlineScoreRequest()
@@ -200,7 +202,7 @@ def online_score_handler(arguments):
         return response, code
     
     if ("first_name" not in EmptyFields().fields and "last_name" not in EmptyFields().fields) or ("email" not in EmptyFields().fields and "phone" not in EmptyFields().fields) or ("birthday" not in EmptyFields.fields and "gender" not in EmptyFields().fields):
-        if mr.is_admin:
+        if admin:
             return {"score": 42}, OK
         else:
             return {"score": get_score("", os.phone,os.email, os.birthday, os.gender, os.first_name, os.last_name)}, OK
@@ -268,11 +270,10 @@ def method_handler(request, ctx, store):
         response, code = "Forbidden", FORBIDDEN
         return response, code
 
-    response, code = metod_router[mr.method](mr.arguments)
+    response, code = metod_router[mr.method](mr.arguments, mr.is_admin)
 
     response, code = {}, OK
     return response, code
-
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {

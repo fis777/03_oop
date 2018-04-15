@@ -59,6 +59,12 @@ class TestSuite(unittest.TestCase):
         foo = {"client_ids": (1,2,3), "date": "20.07.2017"}
         response, code = api.clients_interests_handler(foo)
         self.assertEqual(response, {"Not valid fields": ["client_ids"]})
+    
+    def test_online_score_handler(self):
+        foo = {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}
+        response,code = api.online_score_handler(foo, True)
+        self.assertEqual(code, api.OK)
+
 
 
 if __name__ == "__main__":
