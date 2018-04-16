@@ -38,7 +38,7 @@ GENDERS = {
 
 class EmptyFields(object):
     """проверка на пустое value"""
-    empty_values = ([], {}, (), '', 0, None)
+    empty_values = ([], {}, (), '', None)
     fields = []
     def check(self, name, value):
         if value in self.empty_values:
@@ -56,7 +56,7 @@ class EmptyFields(object):
         
 
 class ErrorFields(object):
-    """docstring for Errorhandler"""
+    """класс обработчик ошибок валидации"""
     errors = []
     def add(self,error_field):
         self.errors.append(error_field[1:])
@@ -72,7 +72,6 @@ class ErrorFields(object):
 
 class Field(object):
     """Класс предок для всех дескрипторов"""
-    empty_fields = ([], {}, (), '', 0, None)
     def __init__(self, required, nullable=True, name=''):
         super(Field, self).__init__()
         self.required = required
@@ -84,7 +83,7 @@ class Field(object):
             if value is None:
                 ErrorFields().add(self.name)
                 return
-        if value in self.empty_fields:
+        if EmptyFields().check(self.name, value):
             if not self.nullable:
                 ErrorFields().add(self.name)
                 return
@@ -170,7 +169,7 @@ class Request(type):
                 attrs['fields'].append(attr_name)
         return type.__new__(meta, classname, supers, attrs)
 
-def clients_interests_handler(arguments,admin):
+def clients_interests_handler(arguments,admin=False):
     ErrorFields().clean()
     ci = ClientsInterestsRequest()
     for attr_name in ci.fields:
@@ -207,7 +206,7 @@ def online_score_handler(arguments, admin):
         else:
             return {"score": get_score("", os.phone,os.email, os.birthday, os.gender, os.first_name, os.last_name)}, OK
     else:
-        response, code = {"Not valid fields": ErrorFields().errors}, INVALID_REQUEST
+        response, code = {"Empty fields": EmptyFields().fields}, INVALID_REQUEST
 
 class ClientsInterestsRequest(object):
     __metaclass__ = Request

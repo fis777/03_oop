@@ -63,7 +63,19 @@ class TestSuite(unittest.TestCase):
     def test_online_score_handler(self):
         foo = {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}
         response,code = api.online_score_handler(foo, True)
-        self.assertEqual(code, api.OK)
+        self.assertEqual(response, {"score": 42})
+
+        foo = {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}
+        response,code = api.online_score_handler(foo, False)
+        self.assertEqual(response, {"score": 5.0})
+
+        foo = {"phone": "679175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}
+        response,code = api.online_score_handler(foo, False)
+        self.assertEqual((response, code), ({"Not valid fields": ["phone"]}, api.INVALID_REQUEST))
+
+        foo = {"phone": "", "email": "stupnikov@otus.ru", "first_name": "","last_name": "Ступников", "birthday": "01.15.1990", "gender": None}
+        response,code = api.online_score_handler(foo, False)
+        self.assertEqual((response, code), ({"Not valid fields": ["phone"]}, api.INVALID_REQUEST))
 
 
 
