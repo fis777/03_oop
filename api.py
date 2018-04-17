@@ -127,24 +127,32 @@ class PhoneField(Field):
             ErrorFields().add(self.name)
 
 class DateField(Field):
-    def validate(self, instance, value):
+    date_in_datetime = None
+    def convert_to_datetime(self, value):
         try:
-            date_field = datetime.datetime.strptime(value,"%d.%m.%Y")
-        except:
+            self.date_in_datetime = datetime.datetime.strptime(value,"%m.%d.%Y")
+        except Exception as exception:
             ErrorFields().add(self.name)
-        else:
-            setattr(instance, self.name, date_field)
+            logging.info(exception)
+
+    def validate(self, instance, value):
+        self.convert_to_datetime(value)
+        if self.date_in_datetime is not None:
+            setattr(instance, self.name, self.date_in_datetime )
 
 class BirthDayField(DateField):
     def validate(self, instance, value):
-        super(BirthDayField, self).__set__(instance, value)
-        if DateField().date_field is not None:
-            delta = int((datetime.datetime.now() - DateField().date_field).days/365.25)
-            if delta > 70:
-                setattr(instance, self.name, DateField().date_field)
+        self.convert_to_datetime(value)
+        if self.date_in_datetime is not None:
+            try:
+                delta_in_year = int((datetime.datetime.now() - self.date_in_datetime).days/365.25)
+            except Exception as e:
+                logging.info(e)
+
+            if delta_in_year < 70:
+                setattr(instance, self.name, self.date_in_datetime)
             else:
                 ErrorFields().add(self.name)
-
 
 class GenderField(Field):
     def validate(self, instance, value):
@@ -182,7 +190,7 @@ def clients_interests_handler(arguments,admin=False):
         response, code = {"Not valid fields": ErrorFields().errors}, INVALID_REQUEST
         return response, code
 
-    response = { ids: get_interests("", ids) for ids in ci.client_ids  }    
+    response = { ids: get_interests("", ids) for ids in ci.client_ids}
     return response, OK
 
 def online_score_handler(arguments, admin):
@@ -191,11 +199,11 @@ def online_score_handler(arguments, admin):
     os = OnlineScoreRequest()
     for attr_name in os.fields:
         try:
-            if not EmptyFields().check(arguments[attr_name]):
-                setattr(os, attr_name, arguments[attr_name])
-        except:
+            setattr(os, attr_name, arguments[attr_name])
+        except Exception as exception:
+            logging.info(exception)
             setattr(os, attr_name, None)
-
+    
     if ErrorFields().is_error:
         response, code = {"Not valid fields": ErrorFields().errors}, INVALID_REQUEST
         return response, code
@@ -246,20 +254,20 @@ def check_auth(request):
     return False
 
 
-def method_handler(request, ctx, store):
+def method_handler(request, context, store):
     ErrorFields().clean()
-    
     metod_router = {
         "online_score": online_score_handler,
         "clients_interests": clients_interests_handler
     }
 
     mr = MethodRequest()
-    for attr in ('account','login','token','arguments','method'):
+    for attr_name in ('account', 'login', 'token', 'arguments', 'method'):
         try:
-            setattr(mr, attr, request['body'][attr])
-        except:
-            setattr(mr, attr, None)
+            setattr(mr, attr_name, request['body'][attr_name])
+        except Exception as exception:
+            logging.info(exception)
+            setattr(mr, attr_name, None)
         
     if ErrorFields().is_error:
         response, code = {"Not valid fields": ErrorFields().errors}, INVALID_REQUEST
@@ -270,8 +278,6 @@ def method_handler(request, ctx, store):
         return response, code
 
     response, code = metod_router[mr.method](mr.arguments, mr.is_admin)
-
-    response, code = {}, OK
     return response, code
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
@@ -299,7 +305,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             if path in self.router:
                 try:
                     response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
-                except Exception, e:
+                except Exception as e:
                     logging.exception("Unexpected error: %s" % e)
                     code = INTERNAL_ERROR
             else:
