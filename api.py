@@ -79,7 +79,7 @@ class Field(object):
         return getattr(instance, self.name)
 
     def validate(self, instance, value):
-        pass
+        raise NotImplementedError("You must override method 'validate'")
         
 class CharField(Field):
     def validate(self, instance, value):
