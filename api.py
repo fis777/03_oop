@@ -47,29 +47,13 @@ class EmptyFields(object):
         return False
     def clean(self):
         self.fields[:] = []
-        pass
+
     @property
     def is_empty(self):
         if not self.fields:
             return True
         return False
         
-
-class ErrorFields(object):
-    """класс обработчик ошибок валидации"""
-    errors = []
-    def add(self,error_field):
-        self.errors.append(error_field[1:])
-
-    def clean(self):
-        self.errors[:] = []
-
-    @property    
-    def is_error(self):
-        if self.errors:
-            return True
-        return False
-
 class Field(object):
     """Класс предок для всех дескрипторов"""
     def __init__(self, required, nullable=True, name=''):
@@ -81,11 +65,11 @@ class Field(object):
     def __set__(self, instance, value):
         if self.required:
             if value is None:
-                ErrorFields().add(self.name)
+                raise ValueError(self.name)
                 return
         if EmptyFields().check(self.name, value):
             if not self.nullable:
-                ErrorFields().add(self.name)
+                raise ValueError(self.name)
                 return
             setattr(instance, self.name, value)
         else:
@@ -102,21 +86,21 @@ class CharField(Field):
         if isinstance(value, (str, unicode)):
             setattr(instance, self.name, value)
         else:
-            ErrorFields().add(self.name)
+            raise ValueError(self.name)
     
 class ArgumentsField(Field):
     def validate(self, instance, value):
         if isinstance(value, dict):
             setattr(instance, self.name, value)
         else:
-            ErrorFields().add(self.name)
+            raise ValueError(self.name)
 
 class EmailField(CharField):
     def validate(self, instance, value):
         if value.count('@') == 1:
             setattr(instance, self.name, value)
         else:
-            ErrorFields().add(self.name)
+            raise ValueError(self.name)
 
 class PhoneField(Field):
     def validate(self, instance, value):
@@ -124,16 +108,15 @@ class PhoneField(Field):
         if value.isdigit() and value[0] == '7' or len(value) == 11:
             setattr(instance, self.name, value)
         else:
-            ErrorFields().add(self.name)
+            raise ValueError(self.name)
 
 class DateField(Field):
     date_in_datetime = None
     def convert_to_datetime(self, value):
         try:
             self.date_in_datetime = datetime.datetime.strptime(value,"%m.%d.%Y")
-        except Exception as exception:
-            ErrorFields().add(self.name)
-            logging.info(exception)
+        except Exception:
+            raise ValueError(self.name)
 
     def validate(self, instance, value):
         self.convert_to_datetime(value)
@@ -152,21 +135,21 @@ class BirthDayField(DateField):
             if delta_in_year < 70:
                 setattr(instance, self.name, self.date_in_datetime)
             else:
-                ErrorFields().add(self.name)
+                raise ValueError(self.name)
 
 class GenderField(Field):
     def validate(self, instance, value):
         if isinstance(value,int) and value in (UNKNOWN,MALE,FEMALE):
             setattr(instance, self.name, value)
         else:
-            ErrorFields().add(self.name)
+            raise ValueError(self.name)
 
 class ClientIDsField(Field):
     def validate(self, instance, value):
         if isinstance(value, list):
             setattr(instance, self.name, value)
         else:
-            ErrorFields().add(self.name)
+            raise ValueError(self.name)
 
 class Request(type):
     """docstring for Request"""
@@ -178,36 +161,42 @@ class Request(type):
         return type.__new__(meta, classname, supers, attrs)
 
 def clients_interests_handler(arguments,admin=False):
-    ErrorFields().clean()
     ci = ClientsInterestsRequest()
     for attr_name in ci.fields:
         try:
-            setattr(ci, attr_name, arguments[attr_name])
-        except:
-            setattr(ci, attr_name, None)
-
-    if ErrorFields().is_error:
-        response, code = {"Not valid fields": ErrorFields().errors}, INVALID_REQUEST
-        return response, code
+            value = arguments[attr_name]
+        except KeyError:
+            value = None
+        try:
+            setattr(ci, attr_name, value)
+        except ValueError as error:
+            return {"Not valid field": error.args[0][1:]}, INVALID_REQUEST
+        except Exception as exception:
+            logging.info(exception)
+            return {"Invalid request"}, INVALID_REQUEST
 
     response = { ids: get_interests("", ids) for ids in ci.client_ids}
     return response, OK
 
 def online_score_handler(arguments, admin):
-    ErrorFields().clean()
     EmptyFields().clean()
     os = OnlineScoreRequest()
     for attr_name in os.fields:
+
         try:
-            setattr(os, attr_name, arguments[attr_name])
+            value = arguments[attr_name]
+        except KeyError:
+            value = None
+
+        try:
+            setattr(os, attr_name, value)
+        except ValueError as error:
+            #Не прошли валидацию
+            return {"Not valid field": error.args[0][1:]}, INVALID_REQUEST
         except Exception as exception:
             logging.info(exception)
-            setattr(os, attr_name, None)
-    
-    if ErrorFields().is_error:
-        response, code = {"Not valid fields": ErrorFields().errors}, INVALID_REQUEST
-        return response, code
-    
+            return {"Invalid request"}, INVALID_REQUEST
+
     if ("first_name" not in EmptyFields().fields and "last_name" not in EmptyFields().fields) or ("email" not in EmptyFields().fields and "phone" not in EmptyFields().fields) or ("birthday" not in EmptyFields.fields and "gender" not in EmptyFields().fields):
         if admin:
             return {"score": 42}, OK
@@ -255,7 +244,6 @@ def check_auth(request):
 
 
 def method_handler(request, context, store):
-    ErrorFields().clean()
     metod_router = {
         "online_score": online_score_handler,
         "clients_interests": clients_interests_handler
@@ -263,15 +251,20 @@ def method_handler(request, context, store):
 
     mr = MethodRequest()
     for attr_name in ('account', 'login', 'token', 'arguments', 'method'):
+
         try:
-            setattr(mr, attr_name, request['body'][attr_name])
+            value = request['body'][attr_name]
+        except KeyError:
+            value = None # Если нет такого ключа в request
+
+        try:
+            setattr(mr, attr_name, value)
+        except ValueError as error:
+            #Не прошли валидацию
+            return {"Not valid field": error.args[0][1:]}, INVALID_REQUEST
         except Exception as exception:
             logging.info(exception)
-            setattr(mr, attr_name, None)
-        
-    if ErrorFields().is_error:
-        response, code = {"Not valid fields": ErrorFields().errors}, INVALID_REQUEST
-        return response, code
+            return {"Invalid request"}, INVALID_REQUEST
 
     if not check_auth(mr):
         response, code = "Forbidden", FORBIDDEN

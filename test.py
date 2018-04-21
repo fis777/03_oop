@@ -23,7 +23,6 @@ class TestSuite(unittest.TestCase):
         self.assertEqual(isinstance(api.CharField(required=False, nullable=True), api.Field), True) 
 
     def test_Methodrequest(self):
-        api.ErrorFields().clean()
         mr = api.MethodRequest()
         foo ={'body': {"account": "horns&hoofs", "login": "h&h","method": 35435, "token":"55cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af3","arguments": {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}}}
         setattr(mr, "login", foo["body"]["login"] )
@@ -33,20 +32,15 @@ class TestSuite(unittest.TestCase):
         setattr(mr, "login", foo["body"]["login"] )
         self.assertEqual(mr.login, '')
 
-        foo ={'body': {"account": "horns&hoofs", "login": 123, "method": 35435, "token":"55cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af3","arguments": {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}}}
-        setattr(mr, "login", foo["body"]["login"] )
-        self.assertEqual(api.ErrorFields.errors, ["login"])
-
-
     def test_MethodHandler(self):
 
         foo ={'body': {"account": "horns&hoofs", "login": 123,"method": "online_score", "token":"55cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af34e14e1d5bcd5a08f21fc95","arguments": {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}}}        
         response, code = api.method_handler(foo, "", "")
-        self.assertEqual((response, code),({"Not valid fields": ["login"]}, api.INVALID_REQUEST))
+        self.assertEqual((response, code),({"Not valid field": "login"}, api.INVALID_REQUEST))
 
         foo ={'body': {"account": "horns&hoofs", "login": "h&h", "token":"55cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af3","arguments": {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}}}        
         response, code = api.method_handler(foo, "", "")
-        self.assertEqual((response, code),({"Not valid fields": ["method"]}, api.INVALID_REQUEST))
+        self.assertEqual((response, code),({"Not valid field": "method"}, api.INVALID_REQUEST))
 
     def test_clients_interests_handler(self):
         foo = {"client_ids": [1,2,3,4], "date": "07.20.2017"}
@@ -55,7 +49,7 @@ class TestSuite(unittest.TestCase):
 
         foo = {"client_ids": (1,2,3), "date": "07.20.2017"}
         response, code = api.clients_interests_handler(foo)
-        self.assertEqual(response, {"Not valid fields": ["client_ids"]})
+        self.assertEqual(response, {"Not valid field": "client_ids"})
     
     def test_online_score_handler(self):
         foo = {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}
@@ -68,7 +62,7 @@ class TestSuite(unittest.TestCase):
 
         foo = {"phone": "679175002040", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}
         response,code = api.online_score_handler(foo, False)
-        self.assertEqual((response, code), ({"Not valid fields": ["phone"]}, api.INVALID_REQUEST))
+        self.assertEqual((response, code), ({"Not valid field": "phone"}, api.INVALID_REQUEST))
 
         foo = {"phone": "", "email": "stupnikov@otus.ru", "first_name": "Станислав","last_name": "Ступников", "birthday": "01.15.1990", "gender": 1}
         response,code = api.online_score_handler(foo, False)
