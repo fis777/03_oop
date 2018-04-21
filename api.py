@@ -151,29 +151,37 @@ class ClientIDsField(Field):
         else:
             raise ValueError(self.name)
 
+def set_field_value(obj,values):
+    for field_name in obj.fields:
+        try:
+            value = values[field_name]
+        except KeyError:
+            value = None #Если нет такого ключа в values
+        try:
+            setattr(obj, field_name, value)
+        except ValueError:
+            return {"Not valid field": field_name}, INVALID_REQUEST # Не прошли валидацию
+        except Exception as exception:
+            logging.info(exception)
+            return {"Invalid request"}, INVALID_REQUEST
+    return {}, OK
+
 class Request(type):
-    """docstring for Request"""
+    """Метакласс для ClientsInterestsRequest OnlineScoreRequest MethodRequest
+       в fields сохраняем список атрибутов класса которые потом будем заполнять значениями в методе set_value """
     def __new__(meta, classname, supers, attrs):
         attrs['fields'] = []
         for attr_name, attr_value in attrs.items():
-            if attr_name[0] != "_" and attr_name != "fields":
+            if attr_name[0] != "_" and attr_name != "fields" and attr_name[:2] != "is":
                 attrs['fields'].append(attr_name)
+        attrs['set_value'] = set_field_value
         return type.__new__(meta, classname, supers, attrs)
 
 def clients_interests_handler(arguments,admin=False):
     ci = ClientsInterestsRequest()
-    for attr_name in ci.fields:
-        try:
-            value = arguments[attr_name]
-        except KeyError:
-            value = None
-        try:
-            setattr(ci, attr_name, value)
-        except ValueError as error:
-            return {"Not valid field": error.args[0][1:]}, INVALID_REQUEST
-        except Exception as exception:
-            logging.info(exception)
-            return {"Invalid request"}, INVALID_REQUEST
+    response, code = ci.set_value(arguments)
+    if code != OK:
+        return response, code
 
     response = { ids: get_interests("", ids) for ids in ci.client_ids}
     return response, OK
@@ -181,21 +189,9 @@ def clients_interests_handler(arguments,admin=False):
 def online_score_handler(arguments, admin):
     EmptyFields().clean()
     os = OnlineScoreRequest()
-    for attr_name in os.fields:
-
-        try:
-            value = arguments[attr_name]
-        except KeyError:
-            value = None
-
-        try:
-            setattr(os, attr_name, value)
-        except ValueError as error:
-            #Не прошли валидацию
-            return {"Not valid field": error.args[0][1:]}, INVALID_REQUEST
-        except Exception as exception:
-            logging.info(exception)
-            return {"Invalid request"}, INVALID_REQUEST
+    response, code = os.set_value(arguments)
+    if code != OK:
+        return response, code
 
     if ("first_name" not in EmptyFields().fields and "last_name" not in EmptyFields().fields) or ("email" not in EmptyFields().fields and "phone" not in EmptyFields().fields) or ("birthday" not in EmptyFields.fields and "gender" not in EmptyFields().fields):
         if admin:
@@ -204,6 +200,7 @@ def online_score_handler(arguments, admin):
             return {"score": get_score("", os.phone,os.email, os.birthday, os.gender, os.first_name, os.last_name)}, OK
     else:
         response, code = {"Empty fields": EmptyFields().fields}, INVALID_REQUEST
+        return response, code
 
 class ClientsInterestsRequest(object):
     __metaclass__ = Request
@@ -222,6 +219,7 @@ class OnlineScoreRequest(object):
 
 
 class MethodRequest(object):
+    __metaclass__ = Request
     account = CharField(required=False, nullable=True, name='account')
     login = CharField(required=True, nullable=True, name='login')
     token = CharField(required=True, nullable=True, name='token')
@@ -250,21 +248,9 @@ def method_handler(request, context, store):
     }
 
     mr = MethodRequest()
-    for attr_name in ('account', 'login', 'token', 'arguments', 'method'):
-
-        try:
-            value = request['body'][attr_name]
-        except KeyError:
-            value = None # Если нет такого ключа в request
-
-        try:
-            setattr(mr, attr_name, value)
-        except ValueError as error:
-            #Не прошли валидацию
-            return {"Not valid field": error.args[0][1:]}, INVALID_REQUEST
-        except Exception as exception:
-            logging.info(exception)
-            return {"Invalid request"}, INVALID_REQUEST
+    response, code = mr.set_value(request['body'])
+    if code != OK:
+        return response, code
 
     if not check_auth(mr):
         response, code = "Forbidden", FORBIDDEN

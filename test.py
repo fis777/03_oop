@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-
+import logging
 import api
 
 
@@ -11,6 +11,9 @@ class TestSuite(unittest.TestCase):
         self.context = {}
         self.headers = {}
         self.store = None
+
+    logging.basicConfig(filename="test.log", level=logging.INFO,
+                        format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
 
     def get_response(self, request):
         return api.method_handler({"body": request, "headers": self.headers}, self.context, self.store)
