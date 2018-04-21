@@ -193,7 +193,11 @@ def online_score_handler(arguments, admin):
     if code != OK:
         return response, code
 
-    if ("first_name" not in EmptyFields().fields and "last_name" not in EmptyFields().fields) or ("email" not in EmptyFields().fields and "phone" not in EmptyFields().fields) or ("birthday" not in EmptyFields.fields and "gender" not in EmptyFields().fields):
+    first_and_last_names = ("first_name" not in EmptyFields().fields and "last_name" not in EmptyFields().fields)
+    email_and_phone = ("email" not in EmptyFields().fields and "phone" not in EmptyFields().fields)
+    birthday_and_gender = ("birthday" not in EmptyFields.fields and "gender" not in EmptyFields().fields)
+ 
+    if first_and_last_names or email_and_phone or birthday_and_gender:
         if admin:
             return {"score": 42}, OK
         else:
