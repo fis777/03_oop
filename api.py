@@ -40,19 +40,15 @@ class EmptyFields(object):
     """проверка на пустое value"""
     empty_values = ([], {}, (), '', None)
     fields = []
-    def check(self, name, value):
-        if value in self.empty_values:
-            self.fields.append(name)
+    @classmethod
+    def check(cls, name, value):
+        if value in cls.empty_values:
+            cls.fields.append(name[1:])
             return True
         return False
-    def clean(self):
-        self.fields[:] = []
-
-    @property
-    def is_empty(self):
-        if not self.fields:
-            return True
-        return False
+    @classmethod
+    def clean(cls):
+        cls.fields[:] = []
         
 class Field(object):
     """Класс предок для всех дескрипторов"""
@@ -67,7 +63,7 @@ class Field(object):
             if value is None:
                 raise ValueError(self.name)
                 return
-        if EmptyFields().check(self.name, value):
+        if EmptyFields.check(self.name, value):
             if not self.nullable:
                 raise ValueError(self.name)
                 return
@@ -187,24 +183,23 @@ def clients_interests_handler(arguments,admin=False):
     return response, OK
 
 def online_score_handler(arguments, admin):
-    EmptyFields().clean()
+    EmptyFields.clean()
     os = OnlineScoreRequest()
     response, code = os.set_value(arguments)
     if code != OK:
         return response, code
 
-    first_and_last_names = ("first_name" not in EmptyFields().fields and "last_name" not in EmptyFields().fields)
-    email_and_phone = ("email" not in EmptyFields().fields and "phone" not in EmptyFields().fields)
-    birthday_and_gender = ("birthday" not in EmptyFields.fields and "gender" not in EmptyFields().fields)
- 
+    first_and_last_names = ("first_name" not in EmptyFields.fields and "last_name" not in EmptyFields.fields)
+    email_and_phone = ("email" not in EmptyFields.fields and "phone" not in EmptyFields.fields)
+    birthday_and_gender = ("birthday" not in EmptyFields.fields and "gender" not in EmptyFields.fields)
     if first_and_last_names or email_and_phone or birthday_and_gender:
         if admin:
             return {"score": 42}, OK
         else:
             return {"score": get_score("", os.phone,os.email, os.birthday, os.gender, os.first_name, os.last_name)}, OK
     else:
-        response, code = {"Empty fields": EmptyFields().fields}, INVALID_REQUEST
-        return response, code
+        response, code = {"Empty fields": EmptyFields.fields}, INVALID_REQUEST
+    return response, code
 
 class ClientsInterestsRequest(object):
     __metaclass__ = Request
